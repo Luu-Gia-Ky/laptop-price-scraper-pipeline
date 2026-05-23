@@ -2,110 +2,107 @@ version: '3.9'
 
 services:
 
-  # ZOOKEEPER
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: zookeeper
     restart: unless-stopped
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
     networks:
       - app-network
 
-  # KAFKA
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: kafka
     restart: unless-stopped
     depends_on:
       - zookeeper
+
     ports:
       - "9092:9092"
       - "29092:29092"
+
     environment:
       KAFKA_BROKER_ID: 1
-
-      # Kết nối Zookeeper
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
 
-      # Listener cho internal docker network + external host
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
+
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
 
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
 
-      # Single node dev mode
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
     networks:
       - app-network
 
-  # MYSQL
   mysql:
     image: mysql:8.0
     container_name: mysql
     restart: unless-stopped
+
     ports:
       - "3306:3306"
+
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: laptop_db
       MYSQL_USER: laptop_user
       MYSQL_PASSWORD: laptop_pass
+
     volumes:
       - mysql_data:/var/lib/mysql
-    command: --default-authentication-plugin=mysql_native_password
+
     networks:
       - app-network
-
-
-  # LARAVEL APP
 
   laravel-app:
     build:
       context: ./laravel-app
-      dockerfile: Dockerfile
+
     container_name: laravel-app
+
     restart: unless-stopped
+
     working_dir: /var/www
+
     volumes:
       - ./laravel-app:/var/www
+
     ports:
       - "8000:8000"
-    depends_on:
-      - mysql
-      - kafka
-    environment:
-      DB_CONNECTION: mysql
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_DATABASE: laptop_db
-      DB_USERNAME: laptop_user
-      DB_PASSWORD: laptop_pass
 
+    depends_on:
+      - kafka
+
+    environment:
       KAFKA_BROKER: kafka:9092
 
     networks:
       - app-network
 
-  # SPRING BOOT APP
   springboot-app:
     build:
       context: ./springboot-app
-      dockerfile: Dockerfile
+
     container_name: springboot-app
+
     restart: unless-stopped
+
     ports:
       - "8080:8080"
+
     depends_on:
-      - mysql
       - kafka
+      - mysql
+
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/laptop_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/laptop_db
       SPRING_DATASOURCE_USERNAME: laptop_user
       SPRING_DATASOURCE_PASSWORD: laptop_pass
 
@@ -114,11 +111,9 @@ services:
     networks:
       - app-network
 
-# NETWORKS
 networks:
   app-network:
     driver: bridge
 
-# VOLUMES
 volumes:
   mysql_data:
