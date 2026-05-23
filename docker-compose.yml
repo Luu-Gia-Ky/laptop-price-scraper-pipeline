@@ -63,7 +63,7 @@ services:
 
   laravel-app:
     build:
-      context: ./laravel-app
+      context: ./laravel-scraper
 
     container_name: laravel-app
 
@@ -88,7 +88,7 @@ services:
 
   springboot-app:
     build:
-      context: ./springboot-app
+      context: ./springboot-processor
 
     container_name: springboot-app
 
